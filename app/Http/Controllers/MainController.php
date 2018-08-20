@@ -5,7 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 
 use App\CitiesRU;
-
+use Illuminate\Support\Facades\DB;
 class MainController extends Controller
 
 {
@@ -35,18 +35,14 @@ class MainController extends Controller
     }
 
     public function nearestCitiesByDB ($id) {
-//     Nearest cities by DB because it almost the same as by map. Thanks geonames.org :) .
-//     We can do it by alternative solution, find nearest with google maps and check them in own db after it show on map but it will work most slowly.
+
         $limit = 20;
         $center = CitiesRU::where('id',$id)->select('latitude','longitude')->first()->toArray();
 
-        $nearestCities = CitiesRU::where('id','>',$id-10)->select('id','name','latitude','longitude')->limit($limit)->get()->toArray();
-        $nearestCitiesCount = count($nearestCities);
-
-        if($nearestCitiesCount < $limit) {
-            $nearestCities = CitiesRU::where('id','>',$id-(10+$limit-$nearestCitiesCount))->select('id','name','latitude','longitude')->limit($limit)->get()->toArray();
-        }
-
+        $nearestCities  = CitiesRU::select(DB::raw('id, name, latitude, longitude , ( 6367 * acos( cos( radians('.$center['latitude'].') ) * cos( radians( latitude ) ) * cos( radians( longitude ) - radians('.$center['longitude'].') ) + sin( radians('.$center['latitude'].') ) * sin( radians( latitude ) ) ) ) AS distance'))
+//            ->having('distance', '<', 25)
+            ->orderBy('distance')->limit($limit)
+            ->get();
         return response()->json(['cities' => $nearestCities, 'center'=> $center]);
     }
 

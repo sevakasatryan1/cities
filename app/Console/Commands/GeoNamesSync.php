@@ -51,29 +51,29 @@ class GeoNamesSync extends Command
         if (!$config) {
             UpdateConfig::firstOrCreate(['started'=>0])->first();
 
-            }elseif($config['started'] == 1){
+        }elseif($config['started'] == 1){
             return false;
         }
         $status = false;
-        $dateString = date("Y-m-d", time());
 
         $last_config = UpdateConfig::first();
         $last_config->update(['started' => 1]);
+
+        file_put_contents("$path/RU.zip", fopen("http://download.geonames.org/export/dump/RU.zip", 'r'));
+        exec("unzip $path/RU.zip -d $path");
+        $dateString = filemtime ("$path/RU.txt");
 
         if(!$last_config['last_modified']) {
 
 //            first time when table is empty
 
-            file_put_contents("$path/RU.zip", fopen("http://download.geonames.org/export/dump/RU.zip", 'r'));
-            exec("unzip $path/RU.zip -d $path");
             $status = $this->csvToArray("$path/RU.txt",true);
 
         }else if(strtotime($config['last_modified']) < strtotime($dateString)){
 
-            file_put_contents("$path/modifications-$dateString.txt", fopen("http://download.geonames.org/export/dump/modifications-$dateString.txt", 'r'));
-            $status = $this->csvToArray("$path/modifications-$dateString.txt");
+            $status = $this->csvToArray("$path/RU.txt");
         }
-        $last_config->update(['last_modified' => $dateString,'started'=>0]);
+        $last_config->update(['last_modified' => date('Y-m-d H:i:s',$dateString),'started'=>0]);
         File::deleteDirectory($path);
         if ($status) {
             Log::info('Synchronization with geonames.org has been successfully');
@@ -122,8 +122,8 @@ class GeoNamesSync extends Command
                 }
                 if ($first) {
                     CitiesRU::create($row_key);
-                } elseif($row_key['country_code'] == 'RU'){
-                   CitiesRU::firstOrCreate(['geonameid' => $row_key['geonameid']], $row_key);
+                } else {
+                    CitiesRU::firstOrCreate(['geonameid' => $row_key['geonameid']], $row_key);
                 }
 
             }
